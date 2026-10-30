@@ -1,0 +1,614 @@
+openapi: 3.0.3
+info:
+  title: Gaming Platform API
+  version: 1.0.0
+  description: |
+    REST API ігрової платформи. Дає змогу керувати каталогом ігор (Game),
+    гравцями (Player) та бібліотекою ігор кожного гравця.
+
+    Усі запити, крім перегляду каталогу ігор, вимагають JWT-токен у заголовку
+    `Authorization: Bearer <token>`.
+  contact:
+    name: Сапко Артем
+    url: https://github.com/SpkArtZen
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.gaming-platform.example/v1
+    description: Production
+  - url: http://localhost:3000/v1
+    description: Локальний сервер розробки
+security:
+  - bearerAuth: []
+tags:
+  - name: Games
+    description: Каталог ігор платформи
+  - name: Players
+    description: Гравці та їхні бібліотеки ігор
+
+paths:
+  /games:
+    get:
+      tags: [Games]
+      summary: Отримати список ігор
+      description: Повертає сторінку каталогу ігор з можливістю фільтрації за жанром і платформою.
+      operationId: listGames
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: genre
+          in: query
+          description: Фільтр за жанром
+          schema:
+            $ref: '#/components/schemas/Genre'
+        - name: platform
+          in: query
+          description: Фільтр за платформою
+          schema:
+            $ref: '#/components/schemas/Platform'
+        - name: search
+          in: query
+          description: Пошук за назвою гри (без урахування регістру)
+          schema:
+            type: string
+            example: witcher
+      responses:
+        '200':
+          description: Сторінка зі списком ігор
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Games]
+      summary: Додати гру до каталогу
+      operationId: createGame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameInput'
+            example:
+              title: The Witcher 3
+              genre: RPG
+              developer: CD Projekt Red
+              releaseDate: '2015-05-19'
+              price: 29.99
+              platforms: [PC, PLAYSTATION, XBOX]
+      responses:
+        '201':
+          description: Гру створено
+          headers:
+            Location:
+              description: URL створеного ресурсу
+              schema:
+                type: string
+                example: /v1/games/3fa85f64-5717-4562-b3fc-2c963f66afa6
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /games/{gameId}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [Games]
+      summary: Отримати гру за ідентифікатором
+      operationId: getGame
+      security: []
+      responses:
+        '200':
+          description: Дані гри
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Games]
+      summary: Оновити гру
+      description: Повністю замінює дані гри.
+      operationId: updateGame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameInput'
+      responses:
+        '200':
+          description: Гру оновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Games]
+      summary: Видалити гру
+      operationId: deleteGame
+      responses:
+        '204':
+          description: Гру видалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /players:
+    get:
+      tags: [Players]
+      summary: Отримати список гравців
+      operationId: listPlayers
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: country
+          in: query
+          description: Фільтр за кодом країни (ISO 3166-1 alpha-2)
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}$'
+            example: UA
+      responses:
+        '200':
+          description: Сторінка зі списком гравців
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Players]
+      summary: Зареєструвати гравця
+      operationId: createPlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerInput'
+            example:
+              username: art_zen
+              email: player@example.com
+              country: UA
+      responses:
+        '201':
+          description: Гравця створено
+          headers:
+            Location:
+              description: URL створеного ресурсу
+              schema:
+                type: string
+                example: /v1/players/7c9e6679-7425-40de-944b-e07fc1f90ae7
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /players/{playerId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Players]
+      summary: Отримати гравця за ідентифікатором
+      operationId: getPlayer
+      responses:
+        '200':
+          description: Дані гравця
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Players]
+      summary: Оновити гравця
+      description: Повністю замінює профіль гравця.
+      operationId: updatePlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerInput'
+      responses:
+        '200':
+          description: Гравця оновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Players]
+      summary: Видалити гравця
+      operationId: deletePlayer
+      responses:
+        '204':
+          description: Гравця видалено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /players/{playerId}/games:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+    get:
+      tags: [Players]
+      summary: Отримати бібліотеку ігор гравця
+      operationId: listPlayerGames
+      responses:
+        '200':
+          description: Ігри, що належать гравцю
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Players]
+      summary: Додати гру до бібліотеки гравця
+      operationId: addGameToPlayer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddGameRequest'
+      responses:
+        '201':
+          description: Гру додано до бібліотеки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /players/{playerId}/games/{gameId}:
+    parameters:
+      - $ref: '#/components/parameters/PlayerId'
+      - $ref: '#/components/parameters/GameId'
+    delete:
+      tags: [Players]
+      summary: Видалити гру з бібліотеки гравця
+      operationId: removeGameFromPlayer
+      responses:
+        '204':
+          description: Гру видалено з бібліотеки
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT-токен доступу. Передається в заголовку
+        `Authorization: Bearer <token>`.
+
+  parameters:
+    GameId:
+      name: gameId
+      in: path
+      required: true
+      description: Ідентифікатор гри
+      schema:
+        type: string
+        format: uuid
+      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+    PlayerId:
+      name: playerId
+      in: path
+      required: true
+      description: Ідентифікатор гравця
+      schema:
+        type: string
+        format: uuid
+      example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+    Page:
+      name: page
+      in: query
+      description: Номер сторінки (починаючи з 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      description: Кількість елементів на сторінці
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    Genre:
+      type: string
+      description: Жанр гри
+      enum: [ACTION, ADVENTURE, RPG, STRATEGY, SHOOTER, SPORTS, RACING, PUZZLE, SIMULATION]
+      example: RPG
+    Platform:
+      type: string
+      description: Ігрова платформа
+      enum: [PC, PLAYSTATION, XBOX, NINTENDO_SWITCH, MOBILE]
+      example: PC
+
+    GameInput:
+      type: object
+      required: [title, genre, developer, releaseDate, price, platforms]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: The Witcher 3
+        description:
+          type: string
+          maxLength: 2000
+          example: Рольова гра з відкритим світом.
+        genre:
+          $ref: '#/components/schemas/Genre'
+        developer:
+          type: string
+          example: CD Projekt Red
+        releaseDate:
+          type: string
+          format: date
+          example: '2015-05-19'
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 29.99
+        platforms:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Platform'
+          example: [PC, PLAYSTATION, XBOX]
+
+    Game:
+      allOf:
+        - type: object
+          required: [id, rating, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+              readOnly: true
+              example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            rating:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 5
+              readOnly: true
+              description: Середня оцінка гравців
+              example: 4.8
+            createdAt:
+              type: string
+              format: date-time
+              readOnly: true
+              example: '2026-10-30T18:00:00Z'
+            updatedAt:
+              type: string
+              format: date-time
+              readOnly: true
+              example: '2026-10-30T18:00:00Z'
+        - $ref: '#/components/schemas/GameInput'
+
+    PlayerInput:
+      type: object
+      required: [username, email]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9_]+$'
+          example: art_zen
+        email:
+          type: string
+          format: email
+          example: player@example.com
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          description: Код країни ISO 3166-1 alpha-2
+          example: UA
+
+    Player:
+      allOf:
+        - type: object
+          required: [id, level, experience, gameIds, createdAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+              readOnly: true
+              example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            level:
+              type: integer
+              minimum: 1
+              readOnly: true
+              example: 12
+            experience:
+              type: integer
+              minimum: 0
+              readOnly: true
+              description: Кількість очок досвіду
+              example: 15400
+            gameIds:
+              type: array
+              readOnly: true
+              description: Ідентифікатори ігор у бібліотеці гравця
+              items:
+                type: string
+                format: uuid
+              example: [3fa85f64-5717-4562-b3fc-2c963f66afa6]
+            createdAt:
+              type: string
+              format: date-time
+              readOnly: true
+              example: '2026-10-30T18:00:00Z'
+        - $ref: '#/components/schemas/PlayerInput'
+
+    AddGameRequest:
+      type: object
+      required: [gameId]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+
+    PageMeta:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          description: Загальна кількість елементів
+          example: 57
+
+    GameList:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Game'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    PlayerList:
+      type: object
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Player'
+        meta:
+          $ref: '#/components/schemas/PageMeta'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: Game not found
+        details:
+          type: array
+          description: Деталі помилок валідації
+          items:
+            type: string
+          example: ['price must be >= 0']
+
+  responses:
+    BadRequest:
+      description: Некоректний запит (помилка валідації)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: Validation failed
+            details: ['price must be >= 0']
+    Unauthorized:
+      description: Відсутній або недійсний токен доступу
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: Unauthorized
+    NotFound:
+      description: Ресурс не знайдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: Resource not found
+    Conflict:
+      description: Конфлікт (ресурс уже існує)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 409
+            message: Player with this email already exists
